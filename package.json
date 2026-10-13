@@ -4,7 +4,8 @@
   "description": "Схватка — 3D-файтинг 1 на 1",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "postinstall": "pip3 install --break-system-packages --no-cache-dir --target pydeps -r bots/requirements.txt"
   },
   "keywords": [],
   "author": "",

@@ -37,4 +37,16 @@ wss.on('connection',ws=>{
 });
 setInterval(()=>{for(const n of dirty){const r=rooms.get(n);if(!r)continue;const msg=JSON.stringify({t:'peers',room:n,peers:[...r].map(([id,e])=>({id,p:e.p}))});for(const [,e] of r)if(e.ws.readyState===1)e.ws.send(msg)}dirty.clear()},33);
 setInterval(()=>{for(const ws of wss.clients){if(!ws.alive){ws.terminate();continue}ws.alive=false;try{ws.ping()}catch(e){}}},15000);
-server.listen(PORT,()=>{console.log('Схватка on :'+PORT);bot.setup()});
+// --- Python-боты (зеркальный бот и напоминалка) работают в этом же сервисе
+const {spawn}=require('child_process');
+function startPyBots(){
+  if(!fs.existsSync(path.join(__dirname,'bots','app.py')))return;
+  if(!process.env.MIRROR_TOKEN&&!process.env.REMINDER_TOKEN){console.log('Python-боты: нет MIRROR_TOKEN/REMINDER_TOKEN — пропускаю');return}
+  const env={...process.env,PYTHONPATH:path.join(__dirname,'pydeps'),PYTHONUNBUFFERED:'1',MALLOC_ARENA_MAX:'2',TG_BACKUP:'1'};delete env.PORT;
+  const py=spawn('python3',[path.join(__dirname,'bots','app.py')],{env,stdio:'inherit'});
+  py.on('exit',code=>{console.log('Python-боты остановились (код '+code+'), перезапуск через 15 с');setTimeout(startPyBots,15000)});
+}
+// --- бесплатный Render засыпает без входящих запросов: раз в 10 минут стучимся сами к себе
+function keepAwake(){const u=process.env.RENDER_EXTERNAL_URL;if(!u)return;
+  setInterval(()=>{fetch(u.replace(/\/$/,'')+'/health').catch(()=>{})},10*60*1000)}
+server.listen(PORT,()=>{console.log('Схватка on :'+PORT);bot.setup();startPyBots();keepAwake()});
