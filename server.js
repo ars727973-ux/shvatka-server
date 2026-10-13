@@ -1,10 +1,12 @@
 // Схватка: WebSocket relay for online duels (the game itself is on GitHub Pages).
 const http=require('http'),fs=require('fs'),path=require('path'),zlib=require('zlib'),crypto=require('crypto');
 const {WebSocketServer}=require('ws');
+const bot=require('./bot');
 const PORT=process.env.PORT||8080,ROOT=path.join(__dirname,'docs');
 const MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript','.css':'text/css','.json':'application/json','.txt':'text/plain; charset=utf-8','.jpg':'image/jpeg','.png':'image/png','.mp3':'audio/mpeg','.svg':'image/svg+xml','.ico':'image/x-icon'};
 const gzCache=new Map();
 const server=http.createServer((req,res)=>{
+  if(bot.handles(req))return bot.handle(req,res);
   let u=decodeURIComponent((req.url||'/').split('?')[0]);if(u==='/')u='/index.html';
   if(u==='/health'||(u==='/index.html'&&!fs.existsSync(ROOT))){res.setHeader('access-control-allow-origin','*');res.writeHead(200,{'content-type':'text/plain'});return res.end('ok')}
   const f=path.normalize(path.join(ROOT,u));if(!f.startsWith(ROOT)){res.writeHead(403);return res.end()}
@@ -35,4 +37,4 @@ wss.on('connection',ws=>{
 });
 setInterval(()=>{for(const n of dirty){const r=rooms.get(n);if(!r)continue;const msg=JSON.stringify({t:'peers',room:n,peers:[...r].map(([id,e])=>({id,p:e.p}))});for(const [,e] of r)if(e.ws.readyState===1)e.ws.send(msg)}dirty.clear()},33);
 setInterval(()=>{for(const ws of wss.clients){if(!ws.alive){ws.terminate();continue}ws.alive=false;try{ws.ping()}catch(e){}}},15000);
-server.listen(PORT,()=>console.log('Схватка on :'+PORT));
+server.listen(PORT,()=>{console.log('Схватка on :'+PORT);bot.setup()});
